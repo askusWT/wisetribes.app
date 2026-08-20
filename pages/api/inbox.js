@@ -1,4 +1,5 @@
 import { sheetsRequest } from "../../lib/google";
+import { hasValidAccess } from "../../lib/auth";
 
 const MAX_LENGTH = 5000;
 
@@ -6,6 +7,9 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed." });
+  }
+  if (!hasValidAccess(req)) {
+    return res.status(401).json({ error: "Please open the board before adding a note." });
   }
   if (req.body?.website) return res.status(200).json({ ok: true });
   const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";

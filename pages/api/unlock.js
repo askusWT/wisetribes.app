@@ -5,6 +5,10 @@ export default function handler(req, res) {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed." });
   }
+  if (!process.env.SESSION_SECRET) {
+    console.error("Access gate is unavailable: SESSION_SECRET is not configured.");
+    return res.status(500).json({ error: "The board cannot be opened just now. Please try again later." });
+  }
   if (!passcodeMatches(req.body?.passcode)) {
     return res.status(401).json({ error: "That passcode did not open the board. Please try again." });
   }

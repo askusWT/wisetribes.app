@@ -4,12 +4,22 @@ import { hasValidAccess } from "../lib/auth";
 
 const clean = value => value || "Pending";
 
+function daysUntil(date) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || "");
+  if (!match) return null;
+  const [, year, month, day] = match.map(Number);
+  const target = Date.UTC(year, month - 1, day);
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.max(0, Math.ceil((target - today) / 86400000));
+}
+
 export default function Board({ authorized, data }) {
   const [panel, setPanel] = useState(false);
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const days = useMemo(() => data?.meta.targetDate ? Math.max(0, Math.ceil((new Date(data.meta.targetDate) - new Date()) / 86400000)) : null, [data]);
+  const days = useMemo(() => daysUntil(data?.meta.targetDate), [data]);
 
   async function unlock(event) {
     event.preventDefault();

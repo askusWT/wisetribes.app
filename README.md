@@ -6,7 +6,7 @@ A git-backed Next.js status board that builds from flat Google Sheet tables and 
 
 **Recommendation: retain Next.js for this handback.** The existing Vercel project already uses it, and the submission endpoint plus server-verified access gate fit naturally in its serverless functions. Replacing it with a static site would still require a separate function runtime, while adding migration and routing risk. The former static-file rewrite has been removed: `/` is now an ordinary Next.js page, so there is no `beforeFiles` routing ambiguity.
 
-The board data is read once during `prebuild` and emitted to an ignored generated file. It is not hand-maintained in HTML or JavaScript. The page is server-rendered only after a signed, HTTP-only access cookie is validated. This is still lightweight access control—not identity management—but it is materially less exposed than a client-side passcode comparison and adds no paid service.
+The board data is read once during `prebuild` and emitted to an ignored generated file. It is not hand-maintained in HTML or JavaScript. The page and Inbox endpoint are available only after a signed, HTTP-only access cookie is validated. This is still lightweight access control—not identity management—but it is materially less exposed than a client-side passcode comparison and adds no paid service.
 
 ## Setup
 
