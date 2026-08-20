@@ -1,0 +1,6 @@
+{
+  "meta": {"title":"Household relocation","subtitle":"A shared, calm view of what is moving forward","targetDate":"","updated":"Pending first spreadsheet sync","note":"The target date is awaiting confirmation."},
+  "ladder": [{"order":1,"label":"Spreadsheet access pending","detail":"Live milestones will appear after the first successful data sync.","status":"active"}],
+  "currentPriority": {"headline":"Connect the shared source","rationale":"This placeholder is intentionally limited until the current plan is available.","subtasks":["Confirm spreadsheet access"],"deferred":["Project content is pending — no items have been assumed"]},
+  "urgent": [], "backlog": [], "workstreams": [], "decisions": [], "costs": [], "log": []
+}
