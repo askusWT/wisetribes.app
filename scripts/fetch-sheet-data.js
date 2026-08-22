@@ -15,8 +15,14 @@ const records = values => {
 
 function validateHeaders(tabs, names) {
   for (const name of names) {
-    const actual = tabs[name]?.[0] || [];
     const expected = schema[name];
+    if (!Array.isArray(expected)) {
+      throw new Error(
+        `Unknown tab in schema: ${name}. Available tabs: ${Object.keys(schema).join(", ")}`
+      );
+    }
+
+    const actual = (tabs[name]?.[0] ?? []).map(header => String(header).trim());
     const matches = actual.length === expected.length &&
       expected.every((header, index) => actual[index] === header);
 
