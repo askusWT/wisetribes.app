@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test scripts/*.test.js",
     "sheet:setup": "node scripts/setup-sheet.js"
   },
   "dependencies": {
