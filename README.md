@@ -15,9 +15,9 @@ The board data is read once during `prebuild` and emitted to an ignored generate
 3. Share the Google Sheet with the service-account email. It needs read/write access because builds read the board and `/api/inbox` appends submissions.
 4. Review `docs/SHEET_SCHEMA.md`. Back up the current sheet, then run `CONFIRM_SHEET_SETUP=yes pnpm sheet:setup` to add missing tabs and set header rows. It retains existing data rows; reshape visual/merged content manually into those tables before deploying.
 5. Run `ALLOW_SAMPLE_DATA=true pnpm build` for local verification, or `pnpm build` with real credentials for a real data build.
-6. In Vercel, connect this repository, set the four secrets for Production and Preview, use `main` as the production branch, and deploy. Verify the production URL, access gate, and one test Inbox submission in the sheet.
+6. In Vercel, connect this repository, set the four secrets for Production, use `main` as the production branch, and deploy. Add the same secrets to Preview when previews should use the real board; otherwise preview builds use the committed sample data. Verify the production URL, access gate, and one test Inbox submission in the sheet.
 
-Never set `ALLOW_SAMPLE_DATA=true` in Vercel: missing production credentials should stop the build instead of silently publishing placeholders.
+Never set `ALLOW_SAMPLE_DATA=true` in Vercel Production: missing production credentials should stop the build instead of silently publishing placeholders. Vercel Preview deployments automatically fall back to sample data when Google credentials are unavailable, so pull requests remain deployable without exposing production credentials.
 
 ## Open decisions and external steps
 
