@@ -1,7 +1,21 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const schema = require("./sheet-schema");
-const { validateHeaders } = require("./fetch-sheet-data");
+const { hasSheetCredentials, mayUseSampleData, validateHeaders } = require("./fetch-sheet-data");
+
+test("uses sample data for Vercel previews without weakening production builds", () => {
+  assert.equal(mayUseSampleData({ VERCEL_ENV: "preview" }), true);
+  assert.equal(mayUseSampleData({ VERCEL_ENV: "development" }), true);
+  assert.equal(mayUseSampleData({ VERCEL_ENV: "production" }), false);
+  assert.equal(mayUseSampleData({}), false);
+  assert.equal(mayUseSampleData({ ALLOW_SAMPLE_DATA: "true" }), true);
+});
+
+test("requires both Google Sheets credentials", () => {
+  assert.equal(hasSheetCredentials({ GOOGLE_SHEET_ID: "sheet", GOOGLE_SERVICE_ACCOUNT_JSON: "{}" }), true);
+  assert.equal(hasSheetCredentials({ GOOGLE_SHEET_ID: "sheet" }), false);
+  assert.equal(hasSheetCredentials({ GOOGLE_SERVICE_ACCOUNT_JSON: "{}" }), false);
+});
 
 test("accepts header rows that exactly match the sheet schema", () => {
   const names = Object.keys(schema).filter(name => name !== "Inbox");

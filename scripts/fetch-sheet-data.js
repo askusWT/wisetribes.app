@@ -6,6 +6,9 @@ const schema = require("./sheet-schema");
 const output = path.join(process.cwd(), "generated", "board-data.json");
 const splitList = value => String(value || "").split(/\r?\n/).map(item => item.trim()).filter(Boolean);
 const bool = value => /^(true|yes|1|done)$/i.test(String(value || ""));
+const hasSheetCredentials = env => Boolean(env.GOOGLE_SHEET_ID && env.GOOGLE_SERVICE_ACCOUNT_JSON);
+const mayUseSampleData = env =>
+  env.ALLOW_SAMPLE_DATA === "true" || env.VERCEL_ENV === "preview" || env.VERCEL_ENV === "development";
 const records = values => {
   const [headers = [], ...rows] = values || [];
   return rows.filter(row => row.some(cell => String(cell).trim())).map(row =>
@@ -57,14 +60,14 @@ function transform(tabs) {
 }
 
 async function main() {
-  if ((!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) && process.env.ALLOW_SAMPLE_DATA === "true") {
+  if (!hasSheetCredentials(process.env) && mayUseSampleData(process.env)) {
     fs.mkdirSync(path.dirname(output), { recursive: true });
     fs.copyFileSync(path.join(process.cwd(), "data", "sample.json"), output);
-    console.warn("Built with sample data because ALLOW_SAMPLE_DATA=true.");
+    console.warn("Built with sample data because this environment permits the sample fallback.");
     return;
   }
-  if (!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    throw new Error("GOOGLE_SHEET_ID and GOOGLE_SERVICE_ACCOUNT_JSON are required (or set ALLOW_SAMPLE_DATA=true for local development only).");
+  if (!hasSheetCredentials(process.env)) {
+    throw new Error("GOOGLE_SHEET_ID and GOOGLE_SERVICE_ACCOUNT_JSON are required in production (or set ALLOW_SAMPLE_DATA=true for local development).");
   }
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   const now = Math.floor(Date.now() / 1000); const enc = value => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -87,4 +90,4 @@ if (require.main === module) {
   main().catch(error => { console.error(error.message); process.exit(1); });
 }
 
-module.exports = { validateHeaders };
+module.exports = { hasSheetCredentials, mayUseSampleData, validateHeaders };
