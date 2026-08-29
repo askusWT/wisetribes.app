@@ -6,12 +6,36 @@ const schema = require("./sheet-schema");
 const output = path.join(process.cwd(), "generated", "board-data.json");
 const splitList = value => String(value || "").split(/\r?\n/).map(item => item.trim()).filter(Boolean);
 const bool = value => /^(true|yes|1|done)$/i.test(String(value || ""));
+const hasSheetCredentials = env => Boolean(env.GOOGLE_SHEET_ID && env.GOOGLE_SERVICE_ACCOUNT_JSON);
+const mayUseSampleData = env =>
+  env.ALLOW_SAMPLE_DATA === "true" || env.VERCEL_ENV === "preview" || env.VERCEL_ENV === "development";
 const records = values => {
   const [headers = [], ...rows] = values || [];
   return rows.filter(row => row.some(cell => String(cell).trim())).map(row =>
     Object.fromEntries(headers.map((header, index) => [String(header).trim(), row[index] ?? ""]))
   );
 };
+
+function validateHeaders(tabs, names) {
+  for (const name of names) {
+    const expected = schema[name];
+    if (!Array.isArray(expected)) {
+      throw new Error(
+        `Unknown tab in schema: ${name}. Available tabs: ${Object.keys(schema).join(", ")}`
+      );
+    }
+
+    const actual = (tabs[name]?.[0] ?? []).map(header => String(header).trim());
+    const matches = actual.length === expected.length &&
+      expected.every((header, index) => actual[index] === header);
+
+    if (!matches) {
+      throw new Error(
+        `Header mismatch in ${name}: expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`
+      );
+    }
+  }
+}
 
 function transform(tabs) {
   const meta = Object.fromEntries(records(tabs.Meta).map(row => [row.key, row.value]));
@@ -36,14 +60,14 @@ function transform(tabs) {
 }
 
 async function main() {
-  if ((!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) && process.env.ALLOW_SAMPLE_DATA === "true") {
+  if (!hasSheetCredentials(process.env) && mayUseSampleData(process.env)) {
     fs.mkdirSync(path.dirname(output), { recursive: true });
     fs.copyFileSync(path.join(process.cwd(), "data", "sample.json"), output);
-    console.warn("Built with sample data because ALLOW_SAMPLE_DATA=true.");
+    console.warn("Built with sample data because this environment permits the sample fallback.");
     return;
   }
-  if (!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    throw new Error("GOOGLE_SHEET_ID and GOOGLE_SERVICE_ACCOUNT_JSON are required (or set ALLOW_SAMPLE_DATA=true for local development only).");
+  if (!hasSheetCredentials(process.env)) {
+    throw new Error("GOOGLE_SHEET_ID and GOOGLE_SERVICE_ACCOUNT_JSON are required in production (or set ALLOW_SAMPLE_DATA=true for local development).");
   }
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   const now = Math.floor(Date.now() / 1000); const enc = value => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -56,9 +80,14 @@ async function main() {
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${process.env.GOOGLE_SHEET_ID}/values:batchGet?${query}`, {headers:{Authorization:`Bearer ${token}`}});
   if (!response.ok) throw new Error(`Google Sheets read failed (${response.status})`); const payload = await response.json();
   const tabs = Object.fromEntries(names.map((name, index) => [name, payload.valueRanges?.[index]?.values || []]));
+  validateHeaders(tabs, names);
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, `${JSON.stringify(transform(tabs), null, 2)}\n`);
   console.log(`Generated board data from ${names.length} sheet tabs.`);
 }
 
-main().catch(error => { console.error(error.message); process.exit(1); });
+if (require.main === module) {
+  main().catch(error => { console.error(error.message); process.exit(1); });
+}
+
+module.exports = { hasSheetCredentials, mayUseSampleData, validateHeaders };

@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.28.1",
-  "engines": {"node": "22.x"},
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "ALLOW_SAMPLE_DATA=true node scripts/fetch-sheet-data.js && next dev",
     "prebuild": "node scripts/fetch-sheet-data.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test scripts/*.test.js",
     "sheet:setup": "node scripts/setup-sheet.js"
   },
   "dependencies": {
