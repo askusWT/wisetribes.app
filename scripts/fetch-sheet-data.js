@@ -36,13 +36,20 @@ function transform(tabs) {
 }
 
 async function main() {
-  if ((!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) && process.env.ALLOW_SAMPLE_DATA === "true") {
+  const missingGoogleCredentials = !process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const mayUseSampleData = process.env.ALLOW_SAMPLE_DATA === "true" || process.env.VERCEL_ENV === "preview";
+
+  if (missingGoogleCredentials && mayUseSampleData) {
     fs.mkdirSync(path.dirname(output), { recursive: true });
     fs.copyFileSync(path.join(process.cwd(), "data", "sample.json"), output);
-    console.warn("Built with sample data because ALLOW_SAMPLE_DATA=true.");
+    console.warn(
+      process.env.VERCEL_ENV === "preview" && process.env.ALLOW_SAMPLE_DATA !== "true"
+        ? "Built this Vercel preview with sample data because Google Sheets credentials are unavailable."
+        : "Built with sample data because ALLOW_SAMPLE_DATA=true."
+    );
     return;
   }
-  if (!process.env.GOOGLE_SHEET_ID || !process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+  if (missingGoogleCredentials) {
     throw new Error("GOOGLE_SHEET_ID and GOOGLE_SERVICE_ACCOUNT_JSON are required (or set ALLOW_SAMPLE_DATA=true for local development only).");
   }
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
