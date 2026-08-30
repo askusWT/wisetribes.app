@@ -13,6 +13,21 @@ const records = values => {
   );
 };
 
+function validateHeaders(tabs, names) {
+  for (const name of names) {
+    const actual = tabs[name]?.[0] || [];
+    const expected = schema[name];
+    const matches = actual.length === expected.length &&
+      expected.every((header, index) => actual[index] === header);
+
+    if (!matches) {
+      throw new Error(
+        `Header mismatch in ${name}: expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`
+      );
+    }
+  }
+}
+
 function transform(tabs) {
   const meta = Object.fromEntries(records(tabs.Meta).map(row => [row.key, row.value]));
   const cp = records(tabs.CurrentPriority)[0] || {};
@@ -63,9 +78,14 @@ async function main() {
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${process.env.GOOGLE_SHEET_ID}/values:batchGet?${query}`, {headers:{Authorization:`Bearer ${token}`}});
   if (!response.ok) throw new Error(`Google Sheets read failed (${response.status})`); const payload = await response.json();
   const tabs = Object.fromEntries(names.map((name, index) => [name, payload.valueRanges?.[index]?.values || []]));
+  validateHeaders(tabs, names);
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, `${JSON.stringify(transform(tabs), null, 2)}\n`);
   console.log(`Generated board data from ${names.length} sheet tabs.`);
 }
 
-main().catch(error => { console.error(error.message); process.exit(1); });
+if (require.main === module) {
+  main().catch(error => { console.error(error.message); process.exit(1); });
+}
+
+module.exports = { validateHeaders };
