@@ -10,12 +10,14 @@ The board data is read once during `prebuild` and emitted to an ignored generate
 
 ## Setup
 
-1. Use Node 22 LTS (`package.json` pins it for Vercel), enable Corepack, then run `pnpm install --frozen-lockfile`.
+1. Use Node 24 LTS (`package.json` pins it for Vercel and `.nvmrc` keeps local development aligned), enable Corepack, then run `pnpm install --frozen-lockfile`.
 2. Copy `.env.example` to `.env.local` and add the sheet ID, service-account JSON, a newly rotated passcode, and a separate 32+ character session secret.
 3. Share the Google Sheet with the service-account email. It needs read/write access because builds read the board and `/api/inbox` appends submissions.
 4. Review `docs/SHEET_SCHEMA.md`. Back up the current sheet, then run `CONFIRM_SHEET_SETUP=yes pnpm sheet:setup` to add missing tabs and set header rows. It retains existing data rows; reshape visual/merged content manually into those tables before deploying.
 5. Run `ALLOW_SAMPLE_DATA=true pnpm build` for local verification, or `pnpm build` with real credentials for a real data build.
 6. In Vercel, connect this repository, set the four secrets for Production, use `main` as the production branch, and deploy. Add the same secrets to Preview when previews should use the real board; otherwise preview builds use the committed sample data. Verify the production URL, access gate, and one test Inbox submission in the sheet.
+
+The repository requests Node 24 through `package.json`. If the Vercel project has a manually configured Node.js version, update **Project Settings → Build and Deployment → Node.js Version** to Node 24 as well; a project-level override can take precedence over the repository setting. This settings change requires access to the Vercel project.
 
 Never set `ALLOW_SAMPLE_DATA=true` in Vercel Production: missing production credentials should stop the build instead of silently publishing placeholders. Vercel Preview deployments automatically fall back to sample data when Google credentials are unavailable, so pull requests remain deployable without exposing production credentials.
 
