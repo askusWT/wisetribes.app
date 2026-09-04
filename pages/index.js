@@ -67,6 +67,7 @@ function Empty() { return <div className="empty">Nothing is listed here right no
 
 export async function getServerSideProps({ req }) {
   if (!hasValidAccess(req)) return { props: { authorized: false, data: null } };
-  const data = await import("../generated/board-data.json");
-  return { props: { authorized: true, data: data.default } };
+  const { fetchBoardData } = await import("../lib/db.js");
+  const data = await fetchBoardData();
+  return { props: { authorized: true, data } };
 }

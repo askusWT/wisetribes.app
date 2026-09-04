@@ -1,42 +1,59 @@
 # Household Relocation Status Board
 
-A git-backed Next.js status board that builds from flat Google Sheet tables and accepts unstructured notes into a shared inbox.
+A git-backed Next.js status board served from Turso (edge SQLite), with a shared inbox for unstructured notes and a local triage script to file them.
 
-## Architecture decision
+## Architecture
 
-**Recommendation: retain Next.js for this handback.** The existing Vercel project already uses it, and the submission endpoint plus server-verified access gate fit naturally in its serverless functions. Replacing it with a static site would still require a separate function runtime, while adding migration and routing risk. The former static-file rewrite has been removed: `/` is now an ordinary Next.js page, so there is no `beforeFiles` routing ambiguity.
-
-The board data is read once during `prebuild` and emitted to an ignored generated file. It is not hand-maintained in HTML or JavaScript. The page and Inbox endpoint are available only after a signed, HTTP-only access cookie is validated. This is still lightweight access control—not identity management—but it is materially less exposed than a client-side passcode comparison and adds no paid service.
+- **Framework:** Next.js (SSR). Board data is fetched live from Turso on every request — no generated files.
+- **Database:** Turso (edge-compatible SQLite via HTTP API). Works from Vercel serverless functions and the local triage script alike.
+- **Auth:** Signed HTTP-only cookie set after passcode entry. Client-side only, not identity management.
+- **Inbox:** Submissions write directly to Turso from `pages/api/inbox.js`. The `triage.py` script classifies them into the right table using Claude Haiku.
+- **Triage:** Manual trigger only (`pnpm run triage`). No scheduled automation.
 
 ## Setup
 
-1. Use Node 24 LTS (`package.json` pins it for Vercel and `.nvmrc` keeps local development aligned), enable Corepack, then run `pnpm install --frozen-lockfile`.
-2. Copy `.env.example` to `.env.local` and add the sheet ID, service-account JSON, a newly rotated passcode, and a separate 32+ character session secret.
-3. Share the Google Sheet with the service-account email. It needs read/write access because builds read the board and `/api/inbox` appends submissions.
-4. Review `docs/SHEET_SCHEMA.md`. Back up the current sheet, then run `CONFIRM_SHEET_SETUP=yes pnpm sheet:setup` to add missing tabs and set header rows. It retains existing data rows; reshape visual/merged content manually into those tables before deploying.
-5. Run `ALLOW_SAMPLE_DATA=true pnpm build` for local verification, or `pnpm build` with real credentials for a real data build.
-6. In Vercel, connect this repository, set the four secrets for Production, use `main` as the production branch, and deploy. Add the same secrets to Preview when previews should use the real board; otherwise preview builds use the committed sample data. Verify the production URL, access gate, and one test Inbox submission in the sheet.
-
-The repository requests Node 24 through `package.json`. If the Vercel project has a manually configured Node.js version, update **Project Settings → Build and Deployment → Node.js Version** to Node 24 as well; a project-level override can take precedence over the repository setting. This settings change requires access to the Vercel project.
-
-Never set `ALLOW_SAMPLE_DATA=true` in Vercel Production: missing production credentials should stop the build instead of silently publishing placeholders. Vercel Preview deployments automatically fall back to sample data when Google credentials are unavailable, so pull requests remain deployable without exposing production credentials.
-
-## Open decisions and external steps
-
-- **Target completion date:** awaiting a real value. Set `Meta.target_date` after it is supplied; the UI intentionally says “date pending” meanwhile.
-- **Pending board section content:** awaiting the stakeholder’s list. No entries have been invented; the sample build marks this explicitly as pending.
-- **Spreadsheet access:** required to inspect drift, migrate real rows, verify conditional formatting, and execute an end-to-end build/submission check.
-- **Hosting connection:** repository/Vercel organization details are required to connect git deployment and verify the live URL. This cannot be completed from source code alone.
-- **Passcode handback:** generate and send `BOARD_PASSCODE` through the agreed out-of-band channel. It must not appear in git, a PR, or build logs.
-- **Framework:** Next.js is recommended above; internal owners should confirm this before handback.
-
-The future scheduled classification/triage process is explicitly out of scope. `Inbox.status` and `Backlog.status` support idempotent processing, while `Log` preserves resolved history.
+1. **Node 24:** `package.json` pins it. Enable Corepack, then run `pnpm install --frozen-lockfile`.
+2. **Turso database:** Create a free database at turso.tech. Copy `.env.example` to `.env.local` and fill in `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+   - For local dev without a Turso account: `TURSO_DATABASE_URL=file:local.db` (no token needed).
+3. **Run migration:** `pnpm run migrate` — creates schema and seeds from `data/sample.json`. For production, run `scripts/migrate-from-sheets.js` first (requires Google Sheets credentials) to pull live data, then `pnpm run migrate` is not needed.
+4. **Add remaining env vars:** `BOARD_PASSCODE`, `SESSION_SECRET` (32+ chars), `ANTHROPIC_API_KEY` (for triage).
+5. **Vercel:** Connect this repository (Settings → Git → Connect). Set all env vars in the Vercel dashboard for Production. Deploy from `main`.
+6. **Verify:** Check wisetribes.app resolves, passcode gate works, one test inbox submission lands in the `inbox` table.
 
 ## Commands
 
 ```bash
-pnpm dev          # local UI with intentionally sparse sample data
-pnpm build        # real Sheets-backed production build
+pnpm dev           # local dev server
+pnpm build         # production build
+pnpm test          # Node.js unit tests (db shaping) + Python tests via separate runner
+pnpm run migrate   # one-time: seed Turso from data/sample.json
+pnpm run triage    # classify unprocessed inbox rows (requires ANTHROPIC_API_KEY)
 pnpm lint
-pnpm sheet:setup  # guarded spreadsheet schema helper
 ```
+
+Run Python tests separately:
+```bash
+python3 tests/test_triage.py
+```
+
+## Open decisions — these have not been defaulted
+
+| Decision | Status |
+|---|---|
+| **Real move date** | Board shows "30 Sep 2026" as a placeholder. Update `meta.target_date` in Turso once confirmed. |
+| **Old Street project list** | Placeholder section exists. Content from Mike's actual list needed before it shows anything real. |
+| **Next.js** | Kept — was already in place and works. No action needed unless it becomes a problem. |
+| **Vercel↔GitHub link** | Verify in Vercel dashboard: Settings → Git → Connected Git Repository. If not connected, git pushes won't trigger deploys. |
+
+## Retiring Google Sheets
+
+Once you've confirmed the migration is complete and the live board is pulling from Turso, the following files can be deleted:
+
+- `lib/google.js`
+- `scripts/fetch-sheet-data.js`
+- `scripts/fetch-sheet-data.test.js`
+- `scripts/setup-sheet.js`
+- `scripts/sheet-schema.js`
+- `docs/SHEET_SCHEMA.md`
+
+Also remove `GOOGLE_SHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_JSON` from Vercel env vars and `.env.example`.

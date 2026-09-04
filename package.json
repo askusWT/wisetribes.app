@@ -7,15 +7,16 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "ALLOW_SAMPLE_DATA=true node scripts/fetch-sheet-data.js && next dev",
-    "prebuild": "node scripts/fetch-sheet-data.js",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "node --test scripts/*.test.js",
-    "sheet:setup": "node scripts/setup-sheet.js"
+    "migrate": "node scripts/migrate.js",
+    "triage": "python3 triage.py"
   },
   "dependencies": {
+    "@libsql/client": "^0.14.0",
     "next": "15.5.21",
     "react": "18.3.1",
     "react-dom": "18.3.1"
